@@ -1,0 +1,19 @@
+[project]
+name = "openttd-tui"
+version = "0.1.0"
+description = "Terminal-native OpenTTD-inspired transport tycoon"
+requires-python = ">=3.10"
+dependencies = [
+    "textual>=0.80,<10",
+    "aiohttp>=3.9",
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["openttd_tui"]
+
+[tool.setuptools.package-data]
+openttd_tui = ["tui.tcss"]
