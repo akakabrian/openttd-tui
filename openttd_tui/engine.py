@@ -184,6 +184,9 @@ class Vehicle:
     age_months: int = 0
     profit_year: int = 0
     profit_last_year: int = 0
+    # (x, y) of the station where the current cargo was loaded — used to
+    # compute payment by Manhattan distance at drop-off.
+    pickup_xy: Optional[tuple[int, int]] = None
 
 
 # ---- Game -------------------------------------------------------------
@@ -375,10 +378,24 @@ class Game:
             nearest = self._nearest_town(x, y)
             if nearest is not None:
                 nearest.population = max(50, nearest.population - 20)
-        # If it was a STATION, remove the Station record.
+        # If it was a STATION, remove the Station record + prune any
+        # vehicle orders pointing at it so orphaned trains/buses don't
+        # loop forever trying to reach a tile that's no longer a stop.
         if t == MP_STATION:
             self.stations = [s for s in self.stations
                              if not (s.x == x and s.y == y)]
+            survivors: list[Vehicle] = []
+            for v in self.vehicles:
+                v.orders = [o for o in v.orders if o != (x, y)]
+                if len(v.orders) < 2:
+                    # Fleet car has no useful round-trip left → retire it.
+                    self._event("warn",
+                                f"{VEHICLE_TYPES[v.kind].name} #{v.vid} "
+                                "retired (lost a stop)")
+                else:
+                    v.order_idx %= len(v.orders)
+                    survivors.append(v)
+            self.vehicles = survivors
         self._grid[x * MAP_H + y] = _make(MP_CLEAR, CLEAR_DIRT)
         self.funds -= cost
         self.expense_year += cost
@@ -644,9 +661,14 @@ class Game:
         if station is None:
             return
         vt = VEHICLE_TYPES[v.kind]
-        # Offload cargo → station pays us.
+        # Offload cargo → station pays us. Payment = £40/unit flat +
+        # £5/unit/tile Manhattan distance from pickup (per DECISIONS.md).
         if v.cargo_amount > 0:
-            payment = v.cargo_amount * 40 + int(abs(v.x - v.y) * 5)
+            if v.pickup_xy is not None:
+                dist = abs(v.pickup_xy[0] - sx) + abs(v.pickup_xy[1] - sy)
+            else:
+                dist = 0
+            payment = v.cargo_amount * 40 + v.cargo_amount * dist * 5
             self.funds += payment
             self.income_year += payment
             v.profit_year += payment
@@ -654,6 +676,7 @@ class Game:
                 station.cargo_waiting.get(v.cargo, 0) + v.cargo_amount
             )
             v.cargo_amount = 0
+            v.pickup_xy = None
         # Load cargo if any industry within 2 tiles produces it.
         for ind in self.industries:
             itype = INDUSTRY_BY_CODE[ind.kind]
@@ -665,6 +688,7 @@ class Game:
                     ind.stockpile[c] -= load
                     v.cargo = c
                     v.cargo_amount = load
+                    v.pickup_xy = (sx, sy)
                     break
             if v.cargo_amount > 0:
                 break
@@ -675,6 +699,7 @@ class Game:
                 load = min(town.population // 10, vt.capacity)
                 v.cargo = "PASS"
                 v.cargo_amount = load
+                v.pickup_xy = (sx, sy)
 
     # ---- snapshot for agent API -------------------------------------
 

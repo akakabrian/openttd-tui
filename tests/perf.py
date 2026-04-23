@@ -48,10 +48,11 @@ def main() -> None:
         if len(grass_spots) >= 2:
             break
     if len(grass_spots) >= 2:
-        a, b = grass_spots[0], grass_spots[1]
-        g.build_rail(*a); g.build_rail(*b)
-        g.build_station(*a, "rail"); g.build_station(*b, "rail")
-        g.place_vehicle("TRAIN", *a)
+        ax, ay = grass_spots[0]
+        bx, by = grass_spots[1]
+        g.build_rail(ax, ay); g.build_rail(bx, by)
+        g.build_station(ax, ay, "rail"); g.build_station(bx, by, "rail")
+        g.place_vehicle("TRAIN", ax, ay)
         bench("engine.tick (1 train)", g.tick, 10_000)
 
     # 2) render_line on the map view — needs a live app context so the
