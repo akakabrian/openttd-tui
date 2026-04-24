@@ -22,7 +22,9 @@ MapView:focus { border: round rgb(255,220,80); }
     background: rgb(10,12,15);
 }
 
-#side { width: 42; height: 1fr; }
+#side { width: 1fr;
+    min-width: 24;
+    max-width: 32; height: 1fr; }
 #side > Static {
     height: auto;
     border: round rgb(70,80,100);
